@@ -33,9 +33,6 @@ This application is designed for reading, displaying, filtering, and basic editi
 2. Apply filters or edit the image using the available tools.
 3. Save the processed image while retaining all modifications.
 
-## License
-This project is licensed under the MIT License.
-
 ## Author
-Your Name
+Krystian Juszczyk
 
