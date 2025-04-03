@@ -1,4 +1,4 @@
-﻿# Image Processing Application
+﻿# Image Processing Application - GIMP5.0
 
 ## Description
 This application is designed for reading, displaying, filtering, and basic editing of image files. It features a scalable GUI, including a resizable and maximizable window.
