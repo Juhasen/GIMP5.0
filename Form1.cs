@@ -2,47 +2,39 @@
 using AForge.Imaging.Filters;
 using System;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using System.IO;
 using System.Windows.Forms;
-using System.Drawing.Drawing2D;
 
 namespace GIMP5._0
 {
     public partial class MainForm : Form
     {
+        #region Fields
         private Bitmap currentImage;
         private Color drawColor = Color.Red;
         private int drawThickness = 3;
         private bool isDrawingEnabled = false;
         private bool isDrawing = false;
         private Point lastPoint;
+        #endregion
 
-        // Constructor
+        #region Initialization
+        /// <summary>
+        /// Main form constructor
+        /// </summary>
         public MainForm()
         {
             InitializeComponent();
-
-            // Wire up events manually
             this.Load += MainForm_Load;
         }
 
-        // Make sure the ThicknessNumericUpDown event is properly wired
-        private void InitializeDrawingControls()
-        {
-            // This method should be called from your constructor or Form_Load
-            ThicknessNumericUpDown.Minimum = 1;
-            ThicknessNumericUpDown.Maximum = 20;
-            ThicknessNumericUpDown.Value = drawThickness;
-            ThicknessNumericUpDown.ValueChanged += ThicknessNumericUpDown_ValueChanged;
-
-            // Make sure color preview is set
-            colorPreview.BackColor = drawColor;
-        }
-
-        // Add this to your MainForm_Load method
+        /// <summary>
+        /// Handles form load event
+        /// </summary>
         private void MainForm_Load(object sender, EventArgs e)
         {
-            // Add event handlers for the PictureBox
+            // Register PictureBox event handlers
             pictureBox.MouseDown += PictureBox_MouseDown;
             pictureBox.MouseMove += PictureBox_MouseMove;
             pictureBox.MouseUp += PictureBox_MouseUp;
@@ -51,104 +43,46 @@ namespace GIMP5._0
             InitializeDrawingControls();
         }
 
-        // Convert mouse coordinates to image coordinates when zoomed
-        private Point ConvertToImageCoordinates(Point mousePoint)
+        /// <summary>
+        /// Initializes drawing controls with default values
+        /// </summary>
+        private void InitializeDrawingControls()
         {
-            if (currentImage == null || pictureBox.Image == null)
-                return mousePoint;
+            // Configure thickness control
+            ThicknessNumericUpDown.Minimum = 1;
+            ThicknessNumericUpDown.Maximum = 40;
+            ThicknessNumericUpDown.Value = drawThickness;
+            ThicknessNumericUpDown.ValueChanged += ThicknessNumericUpDown_ValueChanged;
 
-            // Get the dimensions
-            float zoomX = (float)pictureBox.Width / pictureBox.Image.Width;
-            float zoomY = (float)pictureBox.Height / pictureBox.Image.Height;
-            float zoom = Math.Min(zoomX, zoomY);
+            // Set initial color preview
+            colorPreview.BackColor = drawColor;
+        }
+        #endregion
 
-            // Calculate the top-left corner of the image within the PictureBox
-            float imageX = (pictureBox.Width - (pictureBox.Image.Width * zoom)) / 2;
-            float imageY = (pictureBox.Height - (pictureBox.Image.Height * zoom)) / 2;
-
-            // Convert mouse coordinates to image coordinates
-            int x = (int)((mousePoint.X - imageX) / zoom);
-            int y = (int)((mousePoint.Y - imageY) / zoom);
-
-            // Make sure we're within the bounds of the image
-            x = Math.Max(0, Math.Min(currentImage.Width - 1, x));
-            y = Math.Max(0, Math.Min(currentImage.Height - 1, y));
-
-            return new Point(x, y);
+        #region Image Manipulation Methods
+        /// <summary>
+        /// Loads an image from file
+        /// </summary>
+        /// <param name="filePath">Path to the image file</param>
+        private void OpenImage(string filePath)
+        {
+            currentImage = new Bitmap(filePath);
+            DisplayImage(currentImage);
         }
 
-        // Draw button click handler
-        private void DrawButton_Click(object sender, EventArgs e)
+        /// <summary>
+        /// Saves the current image to file
+        /// </summary>
+        /// <param name="filePath">Path where the image should be saved</param>
+        private void SaveImage(string filePath)
         {
-            if (currentImage == null)
-            {
-                MessageBox.Show("Please open an image first.");
-                return;
-            }
-
-            if (IsGrayscale(currentImage))
-            {
-                MessageBox.Show("Nie można kolorwać obrazu w skali szarości.");
-                return;
-            }
-
-            // Toggle drawing mode
-            isDrawingEnabled = !isDrawingEnabled;
-
-            // Update UI
-            DrawBox.Visible = isDrawingEnabled;
-            pictureBox.Cursor = isDrawingEnabled ? Cursors.Cross : Cursors.Default;
+            currentImage.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
         }
 
-        // Modified mouse handlers to use the coordinate conversion
-        private void PictureBox_MouseDown(object sender, MouseEventArgs e)
-        {
-            if (isDrawingEnabled && e.Button == MouseButtons.Left)
-            {
-                isDrawing = true;
-                lastPoint = ConvertToImageCoordinates(e.Location);
-                Console.WriteLine($"Mouse down at converted point: {lastPoint}");
-            }
-        }
-
-        private void PictureBox_MouseMove(object sender, MouseEventArgs e)
-        {
-            if (isDrawingEnabled && isDrawing)
-            {
-                Point currentPoint = ConvertToImageCoordinates(e.Location);
-
-                using (Graphics g = Graphics.FromImage(currentImage))
-                {
-                    using (Pen pen = new Pen(drawColor, drawThickness))
-                    {
-                        pen.StartCap = System.Drawing.Drawing2D.LineCap.Round;
-                        pen.EndCap = System.Drawing.Drawing2D.LineCap.Round;
-                        g.DrawLine(pen, lastPoint, currentPoint);
-                    }
-                }
-
-                // Update the last point for the next segment
-                lastPoint = currentPoint;
-
-                // Update the display - this will show changes immediately
-                pictureBox.Invalidate();
-
-                Console.WriteLine($"Drawing line to converted point: {currentPoint} with thickness: {drawThickness}");
-            }
-        }
-
-        private void PictureBox_MouseUp(object sender, MouseEventArgs e)
-        {
-            if (isDrawingEnabled && isDrawing)
-            {
-                isDrawing = false;
-
-                // For debugging
-                Console.WriteLine("Mouse up - drawing complete");
-            }
-        }
-
-        // Display image helper
+        /// <summary>
+        /// Displays an image in the picture box
+        /// </summary>
+        /// <param name="image">Image to display</param>
         private void DisplayImage(Bitmap image)
         {
             if (image != null)
@@ -158,41 +92,11 @@ namespace GIMP5._0
             }
         }
 
-        // Color picker button
-        private void PickColorButton_Click(object sender, EventArgs e)
-        {
-            using (ColorDialog colorDialog = new ColorDialog())
-            {
-                if (colorDialog.ShowDialog() == DialogResult.OK)
-                {
-                    drawColor = colorDialog.Color;
-                    colorPreview.BackColor = drawColor;
-                }
-            }
-        }
-
-        // Thickness change handler
-        private void ThicknessNumericUpDown_ValueChanged(object sender, EventArgs e)
-        {
-            drawThickness = (int)ThicknessNumericUpDown.Value;
-        }
-
-        // Wczytanie pliku JPG
-        private void OpenImage(string filePath)
-        {
-            currentImage = new Bitmap(filePath);
-            DisplayImage(currentImage);
-        }
-
-
-
-        // Zapisanie pliku JPG
-        private void SaveImage(string filePath)
-        {
-            currentImage.Save(filePath, System.Drawing.Imaging.ImageFormat.Jpeg);
-        }
-
-        // Konwersja do poziomów szarości
+        /// <summary>
+        /// Checks if the image is grayscale
+        /// </summary>
+        /// <param name="image">Image to check</param>
+        /// <returns>True if the image is grayscale, false otherwise</returns>
         private bool IsGrayscale(Bitmap image)
         {
             for (int y = 0; y < image.Height; y++)
@@ -209,13 +113,15 @@ namespace GIMP5._0
             return true;
         }
 
-        // Konwersja do poziomów szarości
+        /// <summary>
+        /// Converts the current image to grayscale
+        /// </summary>
         private void ConvertToGrayscale()
         {
-            // Sprawdzenie, czy obraz jest już w skali szarości
+            // Check if the image is already grayscale
             if (IsGrayscale(currentImage))
             {
-                MessageBox.Show("Obraz jest już w skali szarości.");
+                MessageBox.Show("The image is already grayscale.");
                 return;
             }
 
@@ -224,7 +130,9 @@ namespace GIMP5._0
             DisplayImage(currentImage);
         }
 
-        // Wykrywanie krawędzi
+        /// <summary>
+        /// Applies edge detection to the current image
+        /// </summary>
         private void ApplyEdgeDetection()
         {
             if (!IsGrayscale(currentImage))
@@ -235,9 +143,142 @@ namespace GIMP5._0
             currentImage = edgeFilter.Apply(currentImage);
             DisplayImage(currentImage);
         }
+        #endregion
 
+        #region Drawing Methods
+        /// <summary>
+        /// Converts mouse coordinates to image coordinates considering zoom level
+        /// </summary>
+        /// <param name="mousePoint">Mouse coordinates</param>
+        /// <returns>Corresponding image coordinates</returns>
+        private Point ConvertToImageCoordinates(Point mousePoint)
+        {
+            if (currentImage == null || pictureBox.Image == null)
+                return mousePoint;
 
-        // Przycisk do wczytania obrazu
+            // Calculate zoom factor
+            float zoomX = (float)pictureBox.Width / pictureBox.Image.Width;
+            float zoomY = (float)pictureBox.Height / pictureBox.Image.Height;
+            float zoom = Math.Min(zoomX, zoomY);
+
+            // Calculate the top-left corner of the image within the PictureBox
+            float imageX = (pictureBox.Width - (pictureBox.Image.Width * zoom)) / 2;
+            float imageY = (pictureBox.Height - (pictureBox.Image.Height * zoom)) / 2;
+
+            // Convert mouse coordinates to image coordinates
+            int x = (int)((mousePoint.X - imageX) / zoom);
+            int y = (int)((mousePoint.Y - imageY) / zoom);
+
+            // Ensure coordinates are within image bounds
+            x = Math.Max(0, Math.Min(currentImage.Width - 1, x));
+            y = Math.Max(0, Math.Min(currentImage.Height - 1, y));
+
+            return new Point(x, y);
+        }
+
+        /// <summary>
+        /// Handles mouse down event on the picture box
+        /// </summary>
+        private void PictureBox_MouseDown(object sender, MouseEventArgs e)
+        {
+            if (isDrawingEnabled && e.Button == MouseButtons.Left)
+            {
+                isDrawing = true;
+                lastPoint = ConvertToImageCoordinates(e.Location);
+            }
+        }
+
+        /// <summary>
+        /// Handles mouse move event on the picture box
+        /// </summary>
+        private void PictureBox_MouseMove(object sender, MouseEventArgs e)
+        {
+            if (isDrawingEnabled && isDrawing)
+            {
+                Point currentPoint = ConvertToImageCoordinates(e.Location);
+
+                using (Graphics g = Graphics.FromImage(currentImage))
+                {
+                    using (Pen pen = new Pen(drawColor, drawThickness))
+                    {
+                        pen.StartCap = LineCap.Round;
+                        pen.EndCap = LineCap.Round;
+                        g.DrawLine(pen, lastPoint, currentPoint);
+                    }
+                }
+
+                // Update the last point for the next segment
+                lastPoint = currentPoint;
+
+                // Update the display immediately
+                pictureBox.Invalidate();
+            }
+        }
+
+        /// <summary>
+        /// Handles mouse up event on the picture box
+        /// </summary>
+        private void PictureBox_MouseUp(object sender, MouseEventArgs e)
+        {
+            if (isDrawingEnabled && isDrawing)
+            {
+                isDrawing = false;
+            }
+        }
+        #endregion
+
+        #region Event Handlers
+        /// <summary>
+        /// Handles draw button click
+        /// </summary>
+        private void DrawButton_Click(object sender, EventArgs e)
+        {
+            if (currentImage == null)
+            {
+                MessageBox.Show("Please open an image first.");
+                return;
+            }
+
+            if (IsGrayscale(currentImage))
+            {
+                MessageBox.Show("Cannot draw on grayscale images.");
+                return;
+            }
+
+            isDrawingEnabled = !isDrawingEnabled;
+
+            DrawBox.Visible = isDrawingEnabled;
+            pictureBox.Cursor = isDrawingEnabled ? Cursors.Cross : Cursors.Default;
+        }
+
+       
+
+        /// <summary>
+        /// Handles color picker button click
+        /// </summary>
+        private void PickColorButton_Click(object sender, EventArgs e)
+        {
+            using (ColorDialog colorDialog = new ColorDialog())
+            {
+                if (colorDialog.ShowDialog() == DialogResult.OK)
+                {
+                    drawColor = colorDialog.Color;
+                    colorPreview.BackColor = drawColor;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Handles thickness control value change
+        /// </summary>
+        private void ThicknessNumericUpDown_ValueChanged(object sender, EventArgs e)
+        {
+            drawThickness = (int)ThicknessNumericUpDown.Value;
+        }
+
+        /// <summary>
+        /// Handles open button click
+        /// </summary>
         private void OpenButton_Click(object sender, EventArgs e)
         {
             using (OpenFileDialog openFileDialog = new OpenFileDialog())
@@ -250,7 +291,9 @@ namespace GIMP5._0
             }
         }
 
-        // Przycisk do zapisania obrazu
+        /// <summary>
+        /// Handles save button click
+        /// </summary>
         private void SaveButton_Click(object sender, EventArgs e)
         {
             using (SaveFileDialog saveFileDialog = new SaveFileDialog())
@@ -263,44 +306,45 @@ namespace GIMP5._0
             }
         }
 
-        // Przycisk do konwersji na szarość
+        /// <summary>
+        /// Handles grayscale button click
+        /// </summary>
         private void GrayscaleButton_Click(object sender, EventArgs e)
         {
             if (currentImage != null)
             {
                 if (isDrawingEnabled)
                 {
-                    MessageBox.Show("Nie można zmienić podczas rysowania.");
+                    MessageBox.Show("Cannot apply filter while drawing mode is active.");
                     return;
                 }
                 ConvertToGrayscale();
             }
             else
             {
-                MessageBox.Show("Proszę najpierw otworzyć obraz.");
+                MessageBox.Show("Please open an image first.");
             }
         }
 
-        // Przycisk do wykrywania krawędzi
+        /// <summary>
+        /// Handles edge detection button click
+        /// </summary>
         private void EdgeDetectButton_Click(object sender, EventArgs e)
         {
             if (currentImage != null)
             {
                 if (isDrawingEnabled)
                 {
-                    MessageBox.Show("Nie można zmienić podczas rysowania.");
+                    MessageBox.Show("Cannot apply filter while drawing mode is active.");
                     return;
                 }
                 ApplyEdgeDetection();
             }
             else
             {
-                MessageBox.Show("Proszę najpierw otworzyć obraz.");
+                MessageBox.Show("Please open an image first.");
             }
         }
-
-
-
-       
+        #endregion
     }
 }
