@@ -86,15 +86,18 @@ namespace GIMP5._0
                 return;
             }
 
+            if (IsGrayscale(currentImage))
+            {
+                MessageBox.Show("Nie można kolorwać obrazu w skali szarości.");
+                return;
+            }
+
             // Toggle drawing mode
             isDrawingEnabled = !isDrawingEnabled;
 
             // Update UI
             DrawBox.Visible = isDrawingEnabled;
             pictureBox.Cursor = isDrawingEnabled ? Cursors.Cross : Cursors.Default;
-
-            // For debugging
-            MessageBox.Show("Drawing mode " + (isDrawingEnabled ? "enabled" : "disabled"));
         }
 
         // Modified mouse handlers to use the coordinate conversion
@@ -265,6 +268,11 @@ namespace GIMP5._0
         {
             if (currentImage != null)
             {
+                if (isDrawingEnabled)
+                {
+                    MessageBox.Show("Nie można zmienić podczas rysowania.");
+                    return;
+                }
                 ConvertToGrayscale();
             }
             else
@@ -278,6 +286,11 @@ namespace GIMP5._0
         {
             if (currentImage != null)
             {
+                if (isDrawingEnabled)
+                {
+                    MessageBox.Show("Nie można zmienić podczas rysowania.");
+                    return;
+                }
                 ApplyEdgeDetection();
             }
             else
